@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useDemoAuth } from '../components/DemoAuthenticator';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useSharedData } from '../contexts/SharedDataContext-demo';
+import { useSharedData } from '../contexts/SharedDataContext-no-storage';
 
 // Pagination component - moved outside to avoid hooks rule violations
 const PaginationControls = ({ currentPage, totalPages, onPageChange, dataType, t, filteredMembers, filteredPrizes, filteredItems, ITEMS_PER_PAGE }) => {

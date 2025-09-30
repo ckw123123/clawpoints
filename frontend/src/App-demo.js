@@ -8,7 +8,7 @@ import AdminDashboard from './pages/AdminDashboard-demo';
 import DemoAuthenticator from './components/DemoAuthenticator';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { SharedDataProvider } from './contexts/SharedDataContext-demo';
+import { SharedDataProvider } from './contexts/SharedDataContext-no-storage';
 
 // Demo Routes Component with role-based routing
 const DemoRoutes = () => {

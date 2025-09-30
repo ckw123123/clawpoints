@@ -1,91 +1,45 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import Home from './pages/Home';
-import Records from './pages/Records';
-import Profile from './pages/Profile';
-import AdminDashboard from './pages/AdminDashboard';
-import Login from './pages/Login';
-import SignUp from './pages/SignUp';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SettingsProvider } from './contexts/SettingsContext';
+import Layout from './components/Layout-restored';
+import Home from './pages/Home-demo';
+import Records from './pages/Records-demo';
+import Profile from './pages/Profile-demo';
+import AdminDashboard from './pages/AdminDashboard-demo';
+import DemoAuthenticator from './components/DemoAuthenticator';
+import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { SharedDataProvider } from './contexts/SharedDataContext';
+import { SharedDataProvider } from './contexts/SharedDataContext-no-storage';
 
-// Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-  
-  return user ? children : <Navigate to="/login" replace />;
-};
-
-// Public Route Component (redirect to home if already logged in)
-const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-  
-  return user ? <Navigate to="/" replace /> : children;
-};
-
-// App Routes Component
-const AppRoutes = () => {
+// Demo Routes Component with role-based routing
+const DemoRoutes = () => {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      } />
-      <Route path="/signup" element={
-        <PublicRoute>
-          <SignUp />
-        </PublicRoute>
-      } />
-      
-      {/* Protected Routes */}
+      {/* Main Routes - Only for Members */}
       <Route path="/" element={
-        <ProtectedRoute>
+        <RoleBasedRedirect>
           <Layout>
             <Home />
           </Layout>
-        </ProtectedRoute>
+        </RoleBasedRedirect>
       } />
       <Route path="/records" element={
-        <ProtectedRoute>
+        <RoleBasedRedirect>
           <Layout>
             <Records />
           </Layout>
-        </ProtectedRoute>
+        </RoleBasedRedirect>
       } />
       <Route path="/profile" element={
-        <ProtectedRoute>
+        <RoleBasedRedirect>
           <Layout>
             <Profile />
           </Layout>
-        </ProtectedRoute>
+        </RoleBasedRedirect>
       } />
       <Route path="/admin" element={
-        <ProtectedRoute>
-          <Layout>
-            <AdminDashboard />
-          </Layout>
-        </ProtectedRoute>
+        <Layout>
+          <AdminDashboard />
+        </Layout>
       } />
       
       {/* Catch all route */}
@@ -94,19 +48,17 @@ const AppRoutes = () => {
   );
 };
 
-// Production version of App
+// Demo App with full functionality
 function App() {
   return (
     <LanguageProvider>
-      <AuthProvider>
-        <SharedDataProvider>
-          <SettingsProvider>
-            <Router>
-              <AppRoutes />
-            </Router>
-          </SettingsProvider>
-        </SharedDataProvider>
-      </AuthProvider>
+      <SharedDataProvider>
+        <Router>
+          <DemoAuthenticator>
+            <DemoRoutes />
+          </DemoAuthenticator>
+        </Router>
+      </SharedDataProvider>
     </LanguageProvider>
   );
 }

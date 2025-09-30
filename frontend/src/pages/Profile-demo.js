@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDemoAuth } from '../components/DemoAuthenticator';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useSharedData } from '../contexts/SharedDataContext-demo';
+import { useSharedData } from '../contexts/SharedDataContext-no-storage';
 
 const Profile = () => {
   const { user, userType, signOut } = useDemoAuth();
