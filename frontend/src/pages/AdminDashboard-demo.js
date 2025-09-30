@@ -130,7 +130,7 @@ const AdminDashboard = () => {
   const [editingBranch, setEditingBranch] = useState(null);
   const [newBranch, setNewBranch] = useState({
     name: '',
-    location: '',
+    nameEn: '',
     whatsapp: '',
     phone: ''
   });
@@ -363,29 +363,20 @@ const AdminDashboard = () => {
   const handleAddBranch = async () => {
     console.log('handleAddBranch called', newBranch);
     
-    if (!newBranch.name || !newBranch.location) {
-      alert('Please fill in branch name and location');
+    if (!newBranch.name || !newBranch.nameEn) {
+      alert('Please fill in both Chinese and English branch names');
       return;
     }
 
     setLoading(true);
     try {
-      // Demo version - add to settings context
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const branch = {
-        id: Date.now().toString(),
-        ...newBranch
-      };
-
-      console.log('Adding branch:', branch);
-      const updatedBranches = [...(settings.branches || []), branch];
-      console.log('Updated branches:', updatedBranches);
-      
-      await updateSettings({ branches: updatedBranches });
+      const branch = addBranch(newBranch);
+      console.log('Added branch:', branch);
 
       // Reset form
-      setNewBranch({ name: '', location: '', whatsapp: '', phone: '' });
+      setNewBranch({ name: '', nameEn: '', whatsapp: '', phone: '' });
       setShowAddBranch(false);
       alert(`Branch added successfully! (Demo mode)`);
     } catch (error) {
@@ -400,7 +391,7 @@ const AdminDashboard = () => {
     console.log('handleCancelAddBranch called');
     setShowAddBranch(false);
     setEditingBranch(null); // Close edit form if open
-    setNewBranch({ name: '', location: '', whatsapp: '', phone: '' });
+    setNewBranch({ name: '', nameEn: '', whatsapp: '', phone: '' });
   };
 
   const handleEditBranch = (branch) => {
@@ -410,8 +401,8 @@ const AdminDashboard = () => {
   };
 
   const handleUpdateBranch = async () => {
-    if (!editingBranch.name || !editingBranch.location) {
-      alert('Please fill in branch name and location');
+    if (!editingBranch.name || !editingBranch.nameEn) {
+      alert('Please fill in both Chinese and English branch names');
       return;
     }
 
@@ -419,11 +410,7 @@ const AdminDashboard = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const updatedBranches = settings.branches.map(branch => 
-        branch.id === editingBranch.id ? editingBranch : branch
-      );
-      
-      await updateSettings({ branches: updatedBranches });
+      updateBranch(editingBranch.id, editingBranch);
       setEditingBranch(null);
       alert(`Branch updated successfully! (Demo mode)`);
     } catch (error) {
@@ -448,8 +435,7 @@ const AdminDashboard = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const updatedBranches = settings.branches.filter(branch => branch.id !== branchId);
-      await updateSettings({ branches: updatedBranches });
+      deleteBranch(branchId);
       alert(`Branch "${branchName}" deleted successfully! (Demo mode)`);
     } catch (error) {
       console.error('Error deleting branch:', error);
@@ -2405,6 +2391,18 @@ const AdminDashboard = () => {
                           <option value="admin">{t('admin')}</option>
                         </select>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('password')} *
+                        </label>
+                        <input
+                          type="password"
+                          value={editingUser.password || ''}
+                          onChange={(e) => setEditingUser(prev => ({ ...prev, password: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          placeholder={t('enterNewPassword')}
+                        />
+                      </div>
                     </div>
                     <div className="flex space-x-3 mt-4">
                       <button
@@ -2447,6 +2445,12 @@ const AdminDashboard = () => {
                         className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                       >
                         {t('edit')}
+                      </button>
+                      <button
+                        onClick={() => openAdminPasswordChange(user, 'user')}
+                        className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                      >
+                        {t('changePassword')}
                       </button>
                       {user.role !== 'admin' && (
                         <button
@@ -2525,6 +2529,18 @@ const AdminDashboard = () => {
                       <option value="admin">{t('admin')}</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('password')} *
+                    </label>
+                    <input
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder={t('enterPassword')}
+                    />
+                  </div>
                 </div>
                 <div className="flex space-x-3 mt-4">
                   <button
@@ -2556,7 +2572,7 @@ const AdminDashboard = () => {
           <h3 className="text-lg font-semibold mb-4">{t('branchManagement')} ({t('demo')})</h3>
           
           <div className="space-y-4">
-            {settings.branches?.map((branch) => (
+            {branches?.map((branch) => (
               <div key={branch.id} className="p-4 border border-gray-200 rounded-lg">
                 {editingBranch && editingBranch.id === branch.id ? (
                   // Edit Form
@@ -2565,24 +2581,26 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('branchName')} *
+                          {t('branchName')} (中文) *
                         </label>
                         <input
                           type="text"
                           value={editingBranch.name}
                           onChange={(e) => setEditingBranch(prev => ({ ...prev, name: e.target.value }))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          placeholder="旺角 信和中心 101 號鋪"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('branchLocation')} *
+                          {t('branchName')} (English) *
                         </label>
                         <input
                           type="text"
-                          value={editingBranch.location}
-                          onChange={(e) => setEditingBranch(prev => ({ ...prev, location: e.target.value }))}
+                          value={editingBranch.nameEn}
+                          onChange={(e) => setEditingBranch(prev => ({ ...prev, nameEn: e.target.value }))}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          placeholder="Shop 101, Sino Centre, Mong Kok"
                         />
                       </div>
                       <div>
@@ -2629,8 +2647,8 @@ const AdminDashboard = () => {
                   <div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <p className="font-medium text-gray-900">{branch.name}</p>
-                        <p className="text-sm text-gray-600">{branch.location}</p>
+                        <p className="font-medium text-gray-900">{isChinese ? branch.name : branch.nameEn}</p>
+                        <p className="text-sm text-gray-600">{isChinese ? branch.nameEn : branch.name}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm">
@@ -2682,7 +2700,7 @@ const AdminDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('branchName')} *
+                      {t('branchName')} (中文) *
                     </label>
                     <input
                       type="text"
@@ -2692,22 +2710,22 @@ const AdminDashboard = () => {
                         setNewBranch(prev => ({ ...prev, name: e.target.value }));
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="Downtown Branch"
+                      placeholder="旺角 信和中心 101 號鋪"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('branchLocation')} *
+                      {t('branchName')} (English) *
                     </label>
                     <input
                       type="text"
-                      value={newBranch.location}
+                      value={newBranch.nameEn}
                       onChange={(e) => {
-                        console.log('Location changed:', e.target.value);
-                        setNewBranch(prev => ({ ...prev, location: e.target.value }));
+                        console.log('NameEn changed:', e.target.value);
+                        setNewBranch(prev => ({ ...prev, nameEn: e.target.value }));
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="123 Main St, Downtown"
+                      placeholder="Shop 101, Sino Centre, Mong Kok"
                     />
                   </div>
                   <div>
