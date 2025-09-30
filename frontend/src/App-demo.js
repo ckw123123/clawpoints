@@ -1,33 +1,40 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout-original';
+import Layout from './components/Layout-restored';
 import Home from './pages/Home-demo';
 import Records from './pages/Records-demo';
 import Profile from './pages/Profile-demo';
 import AdminDashboard from './pages/AdminDashboard-demo';
 import DemoAuthenticator from './components/DemoAuthenticator';
+import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SharedDataProvider } from './contexts/SharedDataContext-demo';
 
-// Demo Routes Component
+// Demo Routes Component with role-based routing
 const DemoRoutes = () => {
   return (
     <Routes>
-      {/* Main Routes */}
+      {/* Main Routes - Only for Members */}
       <Route path="/" element={
-        <Layout>
-          <Home />
-        </Layout>
+        <RoleBasedRedirect>
+          <Layout>
+            <Home />
+          </Layout>
+        </RoleBasedRedirect>
       } />
       <Route path="/records" element={
-        <Layout>
-          <Records />
-        </Layout>
+        <RoleBasedRedirect>
+          <Layout>
+            <Records />
+          </Layout>
+        </RoleBasedRedirect>
       } />
       <Route path="/profile" element={
-        <Layout>
-          <Profile />
-        </Layout>
+        <RoleBasedRedirect>
+          <Layout>
+            <Profile />
+          </Layout>
+        </RoleBasedRedirect>
       } />
       <Route path="/admin" element={
         <Layout>

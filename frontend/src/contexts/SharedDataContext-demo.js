@@ -16,7 +16,7 @@ const STORAGE_KEYS = {
   prizes: 'demo_shared_prizes',
   items: 'demo_shared_items',
   users: 'demo_shared_users',
-  branches: 'demo_shared_branches',
+  branches: 'demo_shared_branches_v2', // Updated version to force refresh
   transactions: 'demo_shared_transactions'
 };
 
@@ -62,15 +62,38 @@ const INITIAL_DATA = {
     { id: '3', username: 'sales2', name: 'Sales User 2', email: 'sales2@example.com', role: 'sales' }
   ],
   branches: [
-    { id: '1', name: 'Downtown Branch', location: '123 Main St, Downtown', whatsapp: '+852 9876 5432', phone: '+852 2345 6789' },
-    { id: '2', name: 'Mall Branch', location: '456 Shopping Center, Mall District', whatsapp: '+852 9876 5433', phone: '+852 2345 6790' },
-    { id: '3', name: 'Airport Branch', location: '789 Terminal Rd, Airport', whatsapp: '+852 9876 5434', phone: '+852 2345 6791' }
+    { 
+      id: '1', 
+      name: '旺角 信和中心 101 號鋪',
+      nameEn: 'Shop 101, Sino Centre, Mong Kok',
+      whatsapp: '+852 5522 3344', 
+      phone: '+852 5522 3344' 
+    },
+    { 
+      id: '2', 
+      name: '石門 京瑞廣場一期 201 號舖',
+      nameEn: 'Shop 201, Phase 1, Kings Wing Plaza, Shek Mun',
+      whatsapp: '+852 6622 3388', 
+      phone: '+852 6622 3388' 
+    },
+    { 
+      id: '3', 
+      name: '旺角中心一期 2樓 S66A',
+      nameEn: 'Shop S66A, 2/F, Argyle Centre Phase 1, Mong Kok',
+      whatsapp: '+852 9922 8833', 
+      phone: '+852 9922 8833' 
+    }
   ]
 };
 
 // Helper functions for localStorage operations
 const loadFromStorage = (key, defaultValue) => {
   try {
+    // Clear old branch data to force refresh with new branch info
+    if (key === STORAGE_KEYS.branches) {
+      localStorage.removeItem('demo_shared_branches'); // Remove old version
+    }
+    
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : defaultValue;
   } catch (error) {
@@ -101,9 +124,12 @@ export const SharedDataProvider = ({ children }) => {
   const [users, setUsers] = useState(() => 
     loadFromStorage(STORAGE_KEYS.users, INITIAL_DATA.users)
   );
-  const [branches, setBranches] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.branches, INITIAL_DATA.branches)
-  );
+  // Force use new branch data by always using INITIAL_DATA for branches
+  const [branches, setBranches] = useState(() => {
+    // Clear any old branch data and use the new data
+    localStorage.removeItem('demo_shared_branches');
+    return INITIAL_DATA.branches;
+  });
   const [transactions, setTransactions] = useState(() => 
     loadFromStorage(STORAGE_KEYS.transactions, INITIAL_DATA.transactions)
   );
@@ -135,7 +161,11 @@ export const SharedDataProvider = ({ children }) => {
 
   // CRUD operations for Members
   const addMember = (member) => {
-    const newMember = { ...member, id: Date.now().toString() };
+    const newMember = { 
+      ...member, 
+      id: Date.now().toString(),
+      qrCode: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Unique QR identifier
+    };
     setMembers(prev => [...prev, newMember]);
     return newMember;
   };

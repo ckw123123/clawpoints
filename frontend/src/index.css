@@ -25,6 +25,11 @@ code {
   display: none;  /* Safari and Chrome */
 }
 
+/* Safe area for mobile devices with notches */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* Smooth scrolling for mobile */
 @media (max-width: 768px) {
   html {
@@ -40,5 +45,21 @@ code {
   /* Prevent zoom on input focus */
   input, select, textarea {
     font-size: 16px;
+  }
+  
+  /* Better Chinese text rendering on mobile */
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Ensure proper line height for Chinese characters */
+  .chinese-text {
+    line-height: 1.6;
+  }
+  
+  /* Better spacing for mixed EN/TC text */
+  .mixed-lang {
+    word-spacing: 0.1em;
   }
 }

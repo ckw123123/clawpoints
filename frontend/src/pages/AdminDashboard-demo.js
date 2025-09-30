@@ -1,12 +1,91 @@
+/* eslint-disable react-hooks/rules-of-hooks */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useDemoAuth } from '../components/DemoAuthenticator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSharedData } from '../contexts/SharedDataContext-demo';
 
+// Pagination component - moved outside to avoid hooks rule violations
+const PaginationControls = ({ currentPage, totalPages, onPageChange, dataType, t, filteredMembers, filteredPrizes, filteredItems, ITEMS_PER_PAGE }) => {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
+  return (
+    <div className="flex items-center justify-between mt-6 px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+      <div className="flex items-center text-sm text-gray-700">
+        <span>
+          {t('showing')} {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, dataType === 'members' ? filteredMembers.length : dataType === 'prizes' ? filteredPrizes.length : filteredItems.length)} {t('of')} {dataType === 'members' ? filteredMembers.length : dataType === 'prizes' ? filteredPrizes.length : filteredItems.length}
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {t('previous')}
+        </button>
+        
+        {getPageNumbers().map((page, index) => (
+          <button
+            key={index}
+            onClick={() => typeof page === 'number' && onPageChange(page)}
+            disabled={page === '...'}
+            className={`px-3 py-1 text-sm border rounded-md ${
+              page === currentPage
+                ? 'bg-blue-600 text-white border-blue-600'
+                : page === '...'
+                ? 'border-transparent cursor-default'
+                : 'border-gray-300 bg-white hover:bg-gray-50'
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+        
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {t('next')}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const { isAdmin, isSales, userRole } = useDemoAuth();
-  const { t } = useLanguage();
+  const { t, isChinese } = useLanguage();
   
   // Demo settings
   const settings = { theme: 'light', notifications: true };
@@ -112,6 +191,14 @@ const AdminDashboard = () => {
     confirmPassword: ''
   });
 
+  // Admin password management states
+  const [showAdminChangePassword, setShowAdminChangePassword] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState(null);
+  const [adminPasswordForm, setAdminPasswordForm] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+
   // Prize management states
   const [showAddPrize, setShowAddPrize] = useState(false);
   const [editingPrize, setEditingPrize] = useState(null);
@@ -138,23 +225,27 @@ const AdminDashboard = () => {
   const [scanResult, setScanResult] = useState(null);
   const [scanType, setScanType] = useState('user'); // 'user' or 'item'
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (isAdmin || isSales) {
       fetchBranches();
     }
-  }, [isAdmin, isSales]);
+  }, [isAdmin, isSales, sharedBranches]);
+
+  // Redirect Sales users away from admin-only tabs
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (isSales && ['users', 'branches', 'settings'].includes(activeTab)) {
+      setActiveTab('scan'); // Redirect to default tab
+    }
+  }, [isSales, activeTab]);
 
   const fetchBranches = async () => {
     try {
-      // Demo data
-      const mockBranches = [
-        { id: '1', name: 'Downtown Branch', location: '123 Main St, Downtown' },
-        { id: '2', name: 'Mall Branch', location: '456 Shopping Center, Mall District' },
-        { id: '3', name: 'Airport Branch', location: '789 Terminal Rd, Airport' }
-      ];
-      setBranches(mockBranches);
-      if (mockBranches.length > 0) {
-        setSelectedBranch(mockBranches[0].id);
+      // Use branches from SharedDataContext instead of mock data
+      if (sharedBranches && sharedBranches.length > 0) {
+        setBranches(sharedBranches);
+        setSelectedBranch(sharedBranches[0].id);
       }
     } catch (error) {
       console.error('Error fetching branches:', error);
@@ -370,8 +461,13 @@ const AdminDashboard = () => {
 
   // User Management Functions
   const handleAddUser = async () => {
-    if (!newUser.username || !newUser.name || !newUser.email) {
-      alert('Please fill in all required fields');
+    if (!newUser.username || !newUser.name || !newUser.email || !newUser.password) {
+      alert('Please fill in all required fields (Username, Name, Email, Password)');
+      return;
+    }
+
+    if (newUser.password.length < 6) {
+      alert(t('passwordMinLength'));
       return;
     }
 
@@ -674,82 +770,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Pagination component
-  const PaginationControls = ({ currentPage, totalPages, onPageChange, dataType }) => {
-    if (totalPages <= 1) return null;
 
-    const getPageNumbers = () => {
-      const pages = [];
-      const maxVisible = 5;
-      
-      if (totalPages <= maxVisible) {
-        for (let i = 1; i <= totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        if (currentPage <= 3) {
-          for (let i = 1; i <= 4; i++) pages.push(i);
-          pages.push('...');
-          pages.push(totalPages);
-        } else if (currentPage >= totalPages - 2) {
-          pages.push(1);
-          pages.push('...');
-          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-        } else {
-          pages.push(1);
-          pages.push('...');
-          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-          pages.push('...');
-          pages.push(totalPages);
-        }
-      }
-      return pages;
-    };
-
-    return (
-      <div className="flex items-center justify-between mt-6 px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-        <div className="flex items-center text-sm text-gray-700">
-          <span>
-            {t('showing')} {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, dataType === 'members' ? filteredMembers.length : dataType === 'prizes' ? filteredPrizes.length : filteredItems.length)} {t('of')} {dataType === 'members' ? filteredMembers.length : dataType === 'prizes' ? filteredPrizes.length : filteredItems.length}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t('previous')}
-          </button>
-          
-          {getPageNumbers().map((page, index) => (
-            <button
-              key={index}
-              onClick={() => typeof page === 'number' && onPageChange(page)}
-              disabled={page === '...'}
-              className={`px-3 py-1 text-sm border rounded-md ${
-                page === currentPage
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : page === '...'
-                  ? 'border-transparent cursor-default'
-                  : 'border-gray-300 bg-white hover:bg-gray-50'
-              }`}
-            >
-              {page}
-            </button>
-          ))}
-          
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t('next')}
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   // Point adjustment function
   const handlePointAdjustment = async () => {
@@ -830,32 +851,70 @@ const AdminDashboard = () => {
     }
   };
 
+  // Admin password management functions
+  const handleAdminChangePassword = async () => {
+    if (!adminPasswordForm.newPassword || !adminPasswordForm.confirmPassword) {
+      alert(t('fillAllPasswordFields'));
+      return;
+    }
+
+    if (adminPasswordForm.newPassword !== adminPasswordForm.confirmPassword) {
+      alert(t('passwordsDoNotMatch'));
+      return;
+    }
+
+    if (adminPasswordForm.newPassword.length < 6) {
+      alert(t('passwordMinLength'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update user/member password in demo mode
+      if (selectedUserForPassword.type === 'user') {
+        updateUser(selectedUserForPassword.id, { password: adminPasswordForm.newPassword });
+      } else {
+        updateMember(selectedUserForPassword.id, { password: adminPasswordForm.newPassword });
+      }
+      
+      alert(`${t('passwordChangedFor')} ${selectedUserForPassword.name} ${t('successfully')}! (${t('demo')})`);
+      setAdminPasswordForm({ newPassword: '', confirmPassword: '' });
+      setShowAdminChangePassword(false);
+      setSelectedUserForPassword(null);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      alert(t('errorChangingPassword') + ': ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openAdminPasswordChange = (user, type) => {
+    setSelectedUserForPassword({ ...user, type });
+    setShowAdminChangePassword(true);
+  };
+
   // Redirect regular users to home page instead of showing access denied
   if (!isAdmin && !isSales) {
     return <Navigate to="/" replace />;
   }
 
-  // Build tabs based on user permissions
-  const tabs = [
-    { id: 'scan', name: t('redemption'), icon: '💳' },
+  // Build tabs with role-based access control
+  const allTabs = [
+    { id: 'scan', name: t('redemption'), icon: '🎫' },
     { id: 'members', name: t('members'), icon: '👥' },
     { id: 'prizes', name: t('prizes'), icon: '🎁' },
     { id: 'items', name: t('items'), icon: '📦' },
+    { id: 'users', name: t('users'), icon: '👤', adminOnly: true },
+    { id: 'branches', name: t('branches'), icon: '🏢', adminOnly: true },
+    { id: 'account', name: t('myAccount'), icon: '⚙️' },
+    { id: 'settings', name: t('settings'), icon: '🔧', adminOnly: true },
   ];
 
-  // Only Admin can manage users and branches
-  if (canManageUsers) {
-    tabs.push({ id: 'users', name: t('users'), icon: '👤' });
-    tabs.push({ id: 'branches', name: t('branches'), icon: '🏪' });
-  }
-
-  // My Account tab for all staff
-  tabs.push({ id: 'account', name: t('myAccount'), icon: '👤' });
-
-  // Only Admin can access settings
-  if (isAdmin) {
-    tabs.push({ id: 'settings', name: t('settings'), icon: '⚙️' });
-  }
+  // Filter tabs based on user role - Sales users can't access Users, Branches, Settings
+  const tabs = allTabs.filter(tab => !tab.adminOnly || isAdmin);
 
   return (
     <div className="space-y-6">
@@ -875,48 +934,28 @@ const AdminDashboard = () => {
           >
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
-                {branch.name} - {branch.location}
+                {isChinese ? branch.name : branch.nameEn}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Tab Navigation - Desktop */}
-        <div className="hidden md:flex space-x-1 bg-gray-100 p-1 rounded-lg">
+        {/* Horizontal Tab Navigation - Exactly like original */}
+        <div className="flex space-x-1 overflow-x-auto pb-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-md text-sm font-medium ${
+              className={`flex items-center space-x-2 py-3 px-4 text-sm font-medium whitespace-nowrap border-b-2 ${
                 activeTab === tab.id
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'border-blue-500 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
               }`}
             >
               <span>{tab.icon}</span>
               <span>{tab.name}</span>
             </button>
           ))}
-        </div>
-
-        {/* Tab Navigation - Mobile Horizontal Scroll */}
-        <div className="md:hidden">
-          <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-2 px-4 rounded-lg text-sm font-medium whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <span>{tab.icon}</span>
-                <span>{tab.name}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -1507,6 +1546,12 @@ const AdminDashboard = () => {
                           {t('edit')}
                         </button>
                         <button
+                          onClick={() => openAdminPasswordChange(member, 'member')}
+                          className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
+                        >
+                          {t('changePassword')}
+                        </button>
+                        <button
                           onClick={() => handleDeleteMember(member.id, member.name)}
                           className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                         >
@@ -1681,6 +1726,12 @@ const AdminDashboard = () => {
                             {t('edit')}
                           </button>
                           <button
+                            onClick={() => openAdminPasswordChange(member, 'member')}
+                            className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
+                          >
+                            {t('changePassword')}
+                          </button>
+                          <button
                             onClick={() => handleDeleteMember(member.id, member.name)}
                             className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                           >
@@ -1699,6 +1750,11 @@ const AdminDashboard = () => {
                     totalPages={memberTotalPages}
                     onPageChange={setMemberCurrentPage}
                     dataType="members"
+                    t={t}
+                    filteredMembers={filteredMembers}
+                    filteredPrizes={filteredPrizes}
+                    filteredItems={filteredItems}
+                    ITEMS_PER_PAGE={ITEMS_PER_PAGE}
                   />
                 </>
               )}
@@ -2032,788 +2088,8 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Users Tab (Admin Only) */}
-      {activeTab === 'users' && canManageUsers && (
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">{t('userManagement')} ({t('demo')})</h3>
-          
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="p-4 border border-gray-200 rounded-lg">
-                {editingUser && editingUser.id === user.id ? (
-                  // Edit Form
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-4">{t('editUser')}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('username')} *
-                        </label>
-                        <input
-                          type="text"
-                          value={editingUser.username}
-                          onChange={(e) => setEditingUser(prev => ({ ...prev, username: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('fullName')} *
-                        </label>
-                        <input
-                          type="text"
-                          value={editingUser.name}
-                          onChange={(e) => setEditingUser(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('email')} *
-                        </label>
-                        <input
-                          type="email"
-                          value={editingUser.email}
-                          onChange={(e) => setEditingUser(prev => ({ ...prev, email: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('userRole')} *
-                        </label>
-                        <select
-                          value={editingUser.role}
-                          onChange={(e) => setEditingUser(prev => ({ ...prev, role: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        >
-                          <option value="sales">{t('sales')}</option>
-                          <option value="admin">{t('admin')}</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="flex space-x-3 mt-4">
-                      <button
-                        onClick={handleUpdateUser}
-                        disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {loading ? t('saving') : t('update')}
-                      </button>
-                      <button
-                        onClick={() => setEditingUser(null)}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                      >
-                        {t('cancel')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // Display Mode
-                  <div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-sm text-gray-600">@{user.username}</p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
-                      </div>
-                      <div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.role === 'admin' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {t(user.role)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex space-x-2">
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                      >
-                        {t('edit')}
-                      </button>
-                      {user.role !== 'admin' && (
-                        <button
-                          onClick={() => handleDeleteUser(user.id, user.name)}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                        >
-                          {t('delete')}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            
-            {/* Add New User Form */}
-            {!showAddUser && !editingUser ? (
-              <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                <button
-                  onClick={() => setShowAddUser(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  + {t('addUser')}
-                </button>
-              </div>
-            ) : showAddUser && (
-              <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <h4 className="font-medium text-gray-900 mb-4">{t('addUser')}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('username')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, username: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="salesuser1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('fullName')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newUser.name}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="Sales User"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('email')} *
-                    </label>
-                    <input
-                      type="email"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="sales@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('userRole')} *
-                    </label>
-                    <select
-                      value={newUser.role}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="sales">{t('sales')}</option>
-                      <option value="admin">{t('admin')}</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex space-x-3 mt-4">
-                  <button
-                    onClick={handleAddUser}
-                    disabled={loading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {loading ? t('saving') : t('save')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddUser(false);
-                      setNewUser({ username: '', name: '', email: '', role: 'sales', password: '' });
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                  >
-                    {t('cancel')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Prizes Tab */}
-      {activeTab === 'prizes' && (
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">{t('prizeManagement')} ({t('demo')})</h3>
-          
-          {/* Search */}
-          <div className="mb-6">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder={t('searchByNameOrBarcode')}
-                  value={prizeSearchQuery}
-                  onChange={(e) => {
-                    setPrizeSearchQuery(e.target.value);
-                    setPrizeCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10"
-                />
-                {prizeSearchQuery && (
-                  <button
-                    onClick={() => {
-                      setPrizeSearchQuery('');
-                      setPrizeCurrentPage(1);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  // Simulate barcode scan for prizes
-                  const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
-                  setPrizeSearchQuery(randomPrize.barcode);
-                  setPrizeCurrentPage(1);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-              >
-                <span>📷</span>
-                <span>{t('scanBarcode')}</span>
-              </button>
-            </div>
-            <div className="mt-2 text-sm text-gray-600">
-              {prizeSearchQuery ? (
-                <span>{filteredPrizes.length} {t('results')} {t('for')} "{prizeSearchQuery}"</span>
-              ) : (
-                <span>{t('totalPrizes')}: {prizes.length}</span>
-              )}
-            </div>
-          </div>
-          
-          {filteredPrizes.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="text-4xl mb-2">🔍</div>
-              <p>{t('noResults')}</p>
-              {prizeSearchQuery && (
-                <button
-                  onClick={() => {
-                    setPrizeSearchQuery('');
-                    setPrizeCurrentPage(1);
-                  }}
-                  className="mt-2 text-blue-600 hover:text-blue-800"
-                >
-                  {t('clearSearch')}
-                </button>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4">
-                {paginatedPrizes.map((prize) => (
-              <div key={prize.id} className="p-4 border border-gray-200 rounded-lg">
-                {editingPrize && editingPrize.id === prize.id ? (
-                  // Edit Form
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-4">{t('editPrize')}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('prizeName')} *
-                        </label>
-                        <input
-                          type="text"
-                          value={editingPrize.name}
-                          onChange={(e) => setEditingPrize(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('barcode')} *
-                        </label>
-                        <input
-                          type="text"
-                          value={editingPrize.barcode}
-                          onChange={(e) => setEditingPrize(prev => ({ ...prev, barcode: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('costPoints')} *
-                        </label>
-                        <input
-                          type="number"
-                          value={editingPrize.cost_points}
-                          onChange={(e) => setEditingPrize(prev => ({ ...prev, cost_points: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('pointsReward')}
-                        </label>
-                        <input
-                          type="number"
-                          value={editingPrize.points_reward}
-                          onChange={(e) => setEditingPrize(prev => ({ ...prev, points_reward: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('stock')}
-                        </label>
-                        <input
-                          type="number"
-                          value={editingPrize.stock}
-                          onChange={(e) => setEditingPrize(prev => ({ ...prev, stock: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('description')}
-                        </label>
-                        <input
-                          type="text"
-                          value={editingPrize.description}
-                          onChange={(e) => setEditingPrize(prev => ({ ...prev, description: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex space-x-3 mt-4">
-                      <button
-                        onClick={handleUpdatePrize}
-                        disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {loading ? t('saving') : t('update')}
-                      </button>
-                      <button
-                        onClick={() => setEditingPrize(null)}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                      >
-                        {t('cancel')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // Display Mode
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{prize.name}</p>
-                      <p className="text-sm text-gray-600">{prize.cost_points} points</p>
-                      <p className="text-sm text-gray-600">{t('stock')}: {prize.stock}</p>
-                      <p className="text-sm text-gray-500">Barcode: {prize.barcode}</p>
-                      {prize.description && (
-                        <p className="text-sm text-gray-500">{prize.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        defaultValue={prize.stock}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                        id={`stock-${prize.id}`}
-                      />
-                      <button
-                        onClick={() => {
-                          const newStock = document.getElementById(`stock-${prize.id}`).value;
-                          updatePrizeStock(prize.id, parseInt(newStock));
-                        }}
-                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                      >
-                        {t('update')}
-                      </button>
-                      <button
-                        onClick={() => handleEditPrize(prize)}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                      >
-                        {t('edit')}
-                      </button>
-                      <button
-                        onClick={() => handleDeletePrize(prize.id, prize.name)}
-                        className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                      >
-                        {t('delete')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-                ))}
-              </div>
-              
-              {/* Pagination */}
-              <PaginationControls
-                currentPage={prizeCurrentPage}
-                totalPages={prizeTotalPages}
-                onPageChange={setPrizeCurrentPage}
-                dataType="prizes"
-              />
-            </>
-          )}
-
-          {/* Add New Prize Form */}
-          <div className="mt-6">
-            {!showAddPrize && !editingPrize ? (
-              <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                <button
-                  onClick={() => setShowAddPrize(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  + {t('addPrize')}
-                </button>
-              </div>
-            ) : showAddPrize && (
-              <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <h4 className="font-medium text-gray-900 mb-4">{t('addPrize')}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('prizeName')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newPrize.name}
-                      onChange={(e) => setNewPrize(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="小公仔"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('barcode')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newPrize.barcode}
-                      onChange={(e) => setNewPrize(prev => ({ ...prev, barcode: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="2001001001001"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('costPoints')} *
-                    </label>
-                    <input
-                      type="number"
-                      value={newPrize.cost_points}
-                      onChange={(e) => setNewPrize(prev => ({ ...prev, cost_points: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('pointsReward')}
-                    </label>
-                    <input
-                      type="number"
-                      value={newPrize.points_reward}
-                      onChange={(e) => setNewPrize(prev => ({ ...prev, points_reward: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('initialStock')}
-                    </label>
-                    <input
-                      type="number"
-                      value={newPrize.stock}
-                      onChange={(e) => setNewPrize(prev => ({ ...prev, stock: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('description')}
-                    </label>
-                    <input
-                      type="text"
-                      value={newPrize.description}
-                      onChange={(e) => setNewPrize(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="可愛小公仔"
-                    />
-                  </div>
-                </div>
-                <div className="flex space-x-3 mt-4">
-                  <button
-                    onClick={handleAddPrize}
-                    disabled={loading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {loading ? t('saving') : t('save')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddPrize(false);
-                      setNewPrize({ name: '', barcode: '', cost_points: 0, points_reward: 0, stock: 0, description: '' });
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                  >
-                    {t('cancel')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Items Tab */}
-      {activeTab === 'items' && (
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">{t('itemManagement')} ({t('demo')})</h3>
-          
-          {/* Search */}
-          <div className="mb-6">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder={t('searchByNameOrBarcode')}
-                  value={itemSearchQuery}
-                  onChange={(e) => {
-                    setItemSearchQuery(e.target.value);
-                    setItemCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10"
-                />
-                {itemSearchQuery && (
-                  <button
-                    onClick={() => {
-                      setItemSearchQuery('');
-                      setItemCurrentPage(1);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  // Simulate barcode scan for items
-                  const randomItem = items[Math.floor(Math.random() * items.length)];
-                  setItemSearchQuery(randomItem.barcode);
-                  setItemCurrentPage(1);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-              >
-                <span>📷</span>
-                <span>{t('scanBarcode')}</span>
-              </button>
-            </div>
-            <div className="mt-2 text-sm text-gray-600">
-              {itemSearchQuery ? (
-                <span>{filteredItems.length} {t('results')} {t('for')} "{itemSearchQuery}"</span>
-              ) : (
-                <span>{t('totalItems')}: {items.length}</span>
-              )}
-            </div>
-          </div>
-          
-          {filteredItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="text-4xl mb-2">🔍</div>
-              <p>{t('noResults')}</p>
-              {itemSearchQuery && (
-                <button
-                  onClick={() => {
-                    setItemSearchQuery('');
-                    setItemCurrentPage(1);
-                  }}
-                  className="mt-2 text-blue-600 hover:text-blue-800"
-                >
-                  {t('clearSearch')}
-                </button>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4">
-                {paginatedItems.map((item) => (
-              <div key={item.id} className="p-4 border border-gray-200 rounded-lg">
-                {editingItem && editingItem.id === item.id ? (
-                  // Edit Form
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-4">{t('editItem')}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('itemName')} *
-                        </label>
-                        <input
-                          type="text"
-                          value={editingItem.name}
-                          onChange={(e) => setEditingItem(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('barcode')} *
-                        </label>
-                        <input
-                          type="text"
-                          value={editingItem.barcode}
-                          onChange={(e) => setEditingItem(prev => ({ ...prev, barcode: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('pointsValue')} *
-                        </label>
-                        <input
-                          type="number"
-                          value={editingItem.points_value}
-                          onChange={(e) => setEditingItem(prev => ({ ...prev, points_value: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-
-                    </div>
-                    <div className="flex space-x-3 mt-4">
-                      <button
-                        onClick={handleUpdateItem}
-                        disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {loading ? t('saving') : t('update')}
-                      </button>
-                      <button
-                        onClick={() => setEditingItem(null)}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                      >
-                        {t('cancel')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // Display Mode
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-gray-600">Barcode: {item.barcode}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <p className="font-semibold text-primary-600">+{item.points_value} pts</p>
-                      <button
-                        onClick={() => handleEditItem(item)}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                      >
-                        {t('edit')}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item.id, item.name)}
-                        className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                      >
-                        {t('delete')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-                ))}
-              </div>
-              
-              {/* Pagination */}
-              <PaginationControls
-                currentPage={itemCurrentPage}
-                totalPages={itemTotalPages}
-                onPageChange={setItemCurrentPage}
-                dataType="items"
-              />
-            </>
-          )}
-
-          {/* Add New Item Form */}
-          <div className="mt-6">
-            {!showAddItem && !editingItem ? (
-              <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                <button
-                  onClick={() => setShowAddItem(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  + {t('addItem')}
-                </button>
-              </div>
-            ) : showAddItem && (
-              <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <h4 className="font-medium text-gray-900 mb-4">{t('addItem')}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('itemName')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newItem.name}
-                      onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="Coffee - Extra Large"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('barcode')} *
-                    </label>
-                    <input
-                      type="text"
-                      value={newItem.barcode}
-                      onChange={(e) => setNewItem(prev => ({ ...prev, barcode: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="1234567890129"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('pointsValue')} *
-                    </label>
-                    <input
-                      type="number"
-                      value={newItem.points_value}
-                      onChange={(e) => setNewItem(prev => ({ ...prev, points_value: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      placeholder="25"
-                    />
-                  </div>
-
-                </div>
-                <div className="flex space-x-3 mt-4">
-                  <button
-                    onClick={handleAddItem}
-                    disabled={loading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {loading ? t('saving') : t('save')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddItem(false);
-                      setNewItem({ name: '', barcode: '', points_value: 0 });
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                  >
-                    {t('cancel')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Branches Tab */}
-      {activeTab === 'branches' && (
+      {/* Branches Tab (Admin Only) */}
+      {activeTab === 'branches' && isAdmin && (
         <div className="bg-white rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">{t('branchManagement')} ({t('demo')})</h3>
           
@@ -3143,8 +2419,8 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Settings Tab */}
-      {activeTab === 'settings' && (
+      {/* Settings Tab (Admin Only) */}
+      {activeTab === 'settings' && isAdmin && (
         <div className="bg-white rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">{t('systemSettings')} ({t('demo')})</h3>
           
@@ -3448,6 +2724,85 @@ const AdminDashboard = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Password Change Modal */}
+      {showAdminChangePassword && selectedUserForPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-semibold">
+                {t('changePasswordFor')} {selectedUserForPassword.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAdminChangePassword(false);
+                  setSelectedUserForPassword(null);
+                  setAdminPasswordForm({ newPassword: '', confirmPassword: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div className="text-sm text-gray-600 mb-4">
+                {t('adminPasswordChangeNote')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('newPassword')} *
+                </label>
+                <input
+                  type="password"
+                  value={adminPasswordForm.newPassword}
+                  onChange={(e) => setAdminPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder={t('enterNewPassword')}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('confirmNewPassword')} *
+                </label>
+                <input
+                  type="password"
+                  value={adminPasswordForm.confirmPassword}
+                  onChange={(e) => setAdminPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder={t('confirmNewPassword')}
+                />
+              </div>
+
+              <div className="text-sm text-gray-600">
+                {t('passwordRequirements')}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex space-x-3">
+              <button
+                onClick={handleAdminChangePassword}
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? t('changing') : t('changePassword')}
+              </button>
+              <button
+                onClick={() => {
+                  setShowAdminChangePassword(false);
+                  setSelectedUserForPassword(null);
+                  setAdminPasswordForm({ newPassword: '', confirmPassword: '' });
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+              >
+                {t('cancel')}
+              </button>
             </div>
           </div>
         </div>

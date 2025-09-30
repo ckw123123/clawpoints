@@ -145,6 +145,18 @@ const translations = {
     welcome: 'Welcome',
     signOut: 'Sign Out',
     demo: 'Demo',
+    appName: 'ClawPoints 爪爪積分',
+    appSlogan: 'Loyalty Points System',
+    demoPreview: 'Demo Preview',
+    loginAsMember: 'Demo User (Member)',
+    loginAsSales: 'Demo Sales Staff',
+    loginAsAdmin: 'Demo Admin',
+    orLoginWithCredentials: 'Choose your demo role',
+    memberLoginExample: 'Member Login Example',
+    demoNotice: 'This is a demo version with simulated data',
+    demoUser: 'Demo User',
+    demoSales: 'Demo Sales',
+    demoAdmin: 'Demo Admin',
     
     // Admin Scanner
     demoClickToSimulate: 'Demo: Click to simulate scanning',
@@ -157,6 +169,9 @@ const translations = {
     edit: 'Edit',
     analytics: 'Analytics',
     addNewBranch: 'Add New Branch',
+    downtownBranch: 'Downtown Branch',
+    mallBranch: 'Mall Branch', 
+    airportBranch: 'Airport Branch',
     
     // Form Labels
     name: 'Name',
@@ -177,9 +192,16 @@ const translations = {
     editUser: 'Edit User',
     deleteUser: 'Delete User',
     userRole: 'User Role',
+    role: 'Role',
     admin: 'Admin',
     sales: 'Sales',
     member: 'Member',
+    basicInformation: 'Basic Information',
+    accountInformation: 'Account Information',
+    currentPoints: 'Current Points',
+    demoProfile: 'Demo Profile',
+    demoProfileDescription: 'This is a demo profile with simulated data',
+    phone: 'Phone',
     showAll: 'Show All',
     loadingMembers: 'Loading members...',
     noMembersFound: 'No members found',
@@ -235,6 +257,7 @@ const translations = {
     previous: 'Previous',
     next: 'Next',
     page: 'Page',
+    records: 'records',
     
     // Search
     searchMembers: 'Search Members',
@@ -407,6 +430,26 @@ const translations = {
     backToSignUp: 'Back to Sign Up',
     accountConfirmed: 'Account confirmed! You can now sign in.',
     
+    // Password Management
+    fillAllPasswordFields: 'Please fill in all password fields',
+    passwordsDoNotMatch: 'New passwords do not match',
+    passwordMinLength: 'New password must be at least 6 characters long',
+    passwordChangedSuccessfully: 'Password changed successfully!',
+    errorChangingPassword: 'Error changing password',
+    enterCurrentPassword: 'Enter current password',
+    enterNewPassword: 'Enter new password',
+    confirmNewPassword: 'Confirm new password',
+    passwordRequirements: 'Password must be at least 6 characters long',
+    changing: 'Changing...',
+    changePasswordFor: 'Change Password for',
+    adminPasswordChangeNote: 'As an admin, you can change any user\'s password without knowing their current password.',
+    passwordChangedFor: 'Password changed for',
+    
+    // Branch Information
+    ourBranches: 'Our Branches',
+    visitAnyBranch: 'Visit any of our branches to earn and redeem points',
+    showQRCodeAtAnyLocation: 'Show your QR code at any location for transactions',
+    
     // General
     successfully: 'Successfully',
     added: 'added',
@@ -558,6 +601,18 @@ const translations = {
     welcome: '歡迎',
     signOut: '登出',
     demo: '演示',
+    appName: 'ClawPoints 爪爪積分',
+    appSlogan: '積分獎勵系統',
+    demoPreview: '演示預覽',
+    loginAsMember: '演示用戶（會員）',
+    loginAsSales: '演示銷售員',
+    loginAsAdmin: '演示管理員',
+    orLoginWithCredentials: '選擇您的演示角色',
+    memberLoginExample: '會員登入示例',
+    demoNotice: '這是一個使用模擬數據的演示版本',
+    demoUser: '演示用戶',
+    demoSales: '演示銷售員',
+    demoAdmin: '演示管理員',
     
     // Admin Scanner
     demoClickToSimulate: '演示：點擊模擬掃描',
@@ -570,6 +625,9 @@ const translations = {
     edit: '編輯',
     analytics: '分析',
     addNewBranch: '新增分店',
+    downtownBranch: '市中心分店',
+    mallBranch: '商場分店',
+    airportBranch: '機場分店',
     
     // Form Labels
     name: '名稱',
@@ -590,9 +648,16 @@ const translations = {
     editUser: '編輯用戶',
     deleteUser: '刪除用戶',
     userRole: '用戶角色',
+    role: '角色',
     admin: '管理員',
     sales: '銷售員',
     member: '會員',
+    basicInformation: '基本信息',
+    accountInformation: '帳戶信息',
+    currentPoints: '當前積分',
+    demoProfile: '演示個人資料',
+    demoProfileDescription: '這是一個使用模擬數據的演示個人資料',
+    phone: '電話',
     showAll: '顯示全部',
     loadingMembers: '載入會員中...',
     noMembersFound: '未找到會員',
@@ -648,6 +713,7 @@ const translations = {
     previous: '上一頁',
     next: '下一頁',
     page: '頁',
+    records: '記錄',
     
     // Search
     searchMembers: '搜尋會員',
@@ -819,6 +885,26 @@ const translations = {
     confirmAccount: '確認帳戶',
     backToSignUp: '返回註冊',
     accountConfirmed: '帳戶已確認！您現在可以登入。',
+    
+    // Password Management
+    fillAllPasswordFields: '請填寫所有密碼欄位',
+    passwordsDoNotMatch: '新密碼不匹配',
+    passwordMinLength: '新密碼必須至少6個字符',
+    passwordChangedSuccessfully: '密碼更改成功！',
+    errorChangingPassword: '更改密碼時發生錯誤',
+    enterCurrentPassword: '輸入當前密碼',
+    enterNewPassword: '輸入新密碼',
+    confirmNewPassword: '確認新密碼',
+    passwordRequirements: '密碼必須至少6個字符',
+    changing: '更改中...',
+    changePasswordFor: '為以下用戶更改密碼',
+    adminPasswordChangeNote: '作為管理員，您可以更改任何用戶的密碼，無需知道他們的當前密碼。',
+    passwordChangedFor: '已為以下用戶更改密碼',
+    
+    // Branch Information
+    ourBranches: '我們的分店',
+    visitAnyBranch: '到訪任何分店賺取及兌換積分',
+    showQRCodeAtAnyLocation: '在任何分店出示您的二維碼進行交易',
     
     // General
     successfully: '成功',
