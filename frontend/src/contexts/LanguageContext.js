@@ -179,6 +179,9 @@ const translations = {
     whatsapp: 'WhatsApp',
     phone: 'Phone',
     
+    // AI Chatbot
+    askAI: 'Ask AI Assistant',
+    
     // Branch Actions
     editBranch: 'Edit Branch',
     deleteBranch: 'Delete Branch',
@@ -634,6 +637,9 @@ const translations = {
     location: '位置',
     whatsapp: 'WhatsApp',
     phone: '電話',
+    
+    // AI Chatbot
+    askAI: '問AI助手',
     
     // Branch Actions
     editBranch: '編輯分店',

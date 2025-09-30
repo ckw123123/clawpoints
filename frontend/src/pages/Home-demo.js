@@ -3,6 +3,7 @@ import { useDemoAuth } from '../components/DemoAuthenticator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSharedData } from '../contexts/SharedDataContext-no-storage';
 import MemberQRCode from '../components/MemberQRCode';
+import AIChatbot from '../components/AIChatbot';
 
 const Home = () => {
   const { user, userType } = useDemoAuth();
@@ -144,6 +145,9 @@ const Home = () => {
           <p className="text-xs text-gray-500">{t('showQRCodeAtAnyLocation')}</p>
         </div>
       </div>
+
+      {/* AI Chatbot - Floating at bottom right */}
+      <AIChatbot />
     </div>
   );
 };
