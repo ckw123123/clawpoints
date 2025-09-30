@@ -1,0 +1,211 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon Lex Bot for Membership Points App'
+
+Parameters:
+  LambdaFunctionArn:
+    Type: String
+    Description: ARN of the Lambda function for Lex fulfillment
+    Default: 'arn:aws:lambda:us-east-1:123456789012:function:membership-points-api-dev-lexFulfillment'
+
+Resources:
+  # IAM Role for Lex Bot
+  LexBotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: MembershipPointsLexBotRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lexv2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonLexFullAccess
+      Policies:
+        - PolicyName: LexLambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Ref LambdaFunctionArn
+
+  # Lex Bot
+  MembershipPointsBot:
+    Type: AWS::Lex::Bot
+    Properties:
+      Name: MembershipPointsBot
+      Description: 'Chatbot for membership points inquiries'
+      RoleArn: !GetAtt LexBotRole.Arn
+      DataPrivacy:
+        ChildDirected: false
+      IdleSessionTTLInSeconds: 300
+      BotLocales:
+        # English Locale
+        - LocaleId: en_US
+          Description: 'English locale for membership points bot'
+          NluConfidenceThreshold: 0.40
+          VoiceSettings:
+            VoiceId: Joanna
+          SlotTypes:
+            - SlotTypeName: PrizeType
+              Description: 'Types of prizes available'
+              SlotTypeValues:
+                - SampleValue:
+                    Value: coffee
+                  Synonyms:
+                    - Value: 咖啡
+                    - Value: 飲品
+                - SampleValue:
+                    Value: gift card
+                  Synonyms:
+                    - Value: 禮品卡
+                    - Value: 現金券
+                - SampleValue:
+                    Value: merchandise
+                  Synonyms:
+                    - Value: 商品
+                    - Value: 精品
+          Intents:
+            # Check Points Intent
+            - IntentName: CheckPointsIntent
+              Description: 'Check current points balance'
+              SampleUtterances:
+                - Utterance: 'How many points do I have'
+                - Utterance: 'What is my points balance'
+                - Utterance: 'Check my points'
+                - Utterance: '我有幾多點'
+                - Utterance: '我嘅積分係幾多'
+                - Utterance: '查詢積分'
+                - Utterance: '點數餘額'
+              FulfillmentCodeHook:
+                Enabled: true
+            
+            # Redeem Intent
+            - IntentName: RedeemIntent
+              Description: 'Check available prizes for redemption'
+              SampleUtterances:
+                - Utterance: 'What can I redeem'
+                - Utterance: 'Show me available prizes'
+                - Utterance: 'What rewards are available'
+                - Utterance: '點數可以換咩'
+                - Utterance: '有咩獎品可以換'
+                - Utterance: '可以換咩禮品'
+                - Utterance: '獎勵有咩'
+              FulfillmentCodeHook:
+                Enabled: true
+            
+            # FAQ Intent
+            - IntentName: FAQIntent
+              Description: 'Frequently asked questions'
+              SampleUtterances:
+                - Utterance: 'When do points expire'
+                - Utterance: 'Do my points expire'
+                - Utterance: 'How long are points valid'
+                - Utterance: '點數幾時過期'
+                - Utterance: '積分會唔會過期'
+                - Utterance: '點數有效期'
+                - Utterance: 'How do I earn points'
+                - Utterance: '點樣賺積分'
+                - Utterance: 'Where can I use my points'
+                - Utterance: '邊度可以用積分'
+              FulfillmentCodeHook:
+                Enabled: true
+
+        # Chinese (Cantonese) Locale
+        - LocaleId: zh_HK
+          Description: 'Cantonese locale for membership points bot'
+          NluConfidenceThreshold: 0.40
+          VoiceSettings:
+            VoiceId: Hiujin
+          Intents:
+            # Check Points Intent (Cantonese)
+            - IntentName: CheckPointsIntent
+              Description: '查詢積分餘額'
+              SampleUtterances:
+                - Utterance: '我有幾多點'
+                - Utterance: '我嘅積分係幾多'
+                - Utterance: '查詢積分'
+                - Utterance: '點數餘額'
+                - Utterance: 'How many points do I have'
+                - Utterance: 'Check my points'
+              FulfillmentCodeHook:
+                Enabled: true
+            
+            # Redeem Intent (Cantonese)
+            - IntentName: RedeemIntent
+              Description: '查詢可兌換獎品'
+              SampleUtterances:
+                - Utterance: '點數可以換咩'
+                - Utterance: '有咩獎品可以換'
+                - Utterance: '可以換咩禮品'
+                - Utterance: '獎勵有咩'
+                - Utterance: 'What can I redeem'
+                - Utterance: 'Show me prizes'
+              FulfillmentCodeHook:
+                Enabled: true
+            
+            # FAQ Intent (Cantonese)
+            - IntentName: FAQIntent
+              Description: '常見問題'
+              SampleUtterances:
+                - Utterance: '點數幾時過期'
+                - Utterance: '積分會唔會過期'
+                - Utterance: '點數有效期'
+                - Utterance: '點樣賺積分'
+                - Utterance: '邊度可以用積分'
+                - Utterance: 'When do points expire'
+                - Utterance: 'How do I earn points'
+              FulfillmentCodeHook:
+                Enabled: true
+
+  # Bot Version
+  MembershipPointsBotVersion:
+    Type: AWS::Lex::BotVersion
+    Properties:
+      BotId: !Ref MembershipPointsBot
+      BotVersionLocaleSpecification:
+        - LocaleId: en_US
+          BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+        - LocaleId: zh_HK
+          BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+
+  # Bot Alias
+  MembershipPointsBotAlias:
+    Type: AWS::Lex::BotAlias
+    Properties:
+      BotId: !Ref MembershipPointsBot
+      BotAliasName: ProductionAlias
+      BotVersion: !GetAtt MembershipPointsBotVersion.BotVersion
+      BotAliasLocaleSettings:
+        - LocaleId: en_US
+          BotAliasLocaleSetting:
+            Enabled: true
+            CodeHookSpecification:
+              LambdaCodeHook:
+                CodeHookInterfaceVersion: '1.0'
+                LambdaArn: !Ref LambdaFunctionArn
+        - LocaleId: zh_HK
+          BotAliasLocaleSetting:
+            Enabled: true
+            CodeHookSpecification:
+              LambdaCodeHook:
+                CodeHookInterfaceVersion: '1.0'
+                LambdaArn: !Ref LambdaFunctionArn
+
+Outputs:
+  BotId:
+    Description: 'Lex Bot ID'
+    Value: !Ref MembershipPointsBot
+    Export:
+      Name: !Sub '${AWS::StackName}-BotId'
+
+  BotAliasId:
+    Description: 'Lex Bot Alias ID'
+    Value: !Ref MembershipPointsBotAlias
+    Export:
+      Name: !Sub '${AWS::StackName}-BotAliasId'

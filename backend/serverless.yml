@@ -1,0 +1,333 @@
+service: membership-points-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    USERS_TABLE: ${self:service}-users-${self:provider.stage}
+    TRANSACTIONS_TABLE: ${self:service}-transactions-${self:provider.stage}
+    ITEMS_TABLE: ${self:service}-items-${self:provider.stage}
+    PRIZES_TABLE: ${self:service}-prizes-${self:provider.stage}
+    BRANCHES_TABLE: ${self:service}-branches-${self:provider.stage}
+    SETTINGS_TABLE: ${self:service}-settings-${self:provider.stage}
+    INSTAGRAM_VERIFY_TOKEN: ${env:INSTAGRAM_VERIFY_TOKEN, 'your-instagram-verify-token'}
+    INSTAGRAM_ACCESS_TOKEN: ${env:INSTAGRAM_ACCESS_TOKEN, 'your-instagram-access-token'}
+    TWILIO_AUTH_TOKEN: ${env:TWILIO_AUTH_TOKEN, 'your-twilio-auth-token'}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.USERS_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TRANSACTIONS_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.ITEMS_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PRIZES_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.BRANCHES_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.SETTINGS_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.USERS_TABLE}/index/*"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TRANSACTIONS_TABLE}/index/*"
+
+functions:
+  # User functions
+  getUser:
+    handler: src/handlers/users.getUser
+    events:
+      - http:
+          path: users/{id}
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  updateUser:
+    handler: src/handlers/users.updateUser
+    events:
+      - http:
+          path: users/{id}
+          method: put
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  searchMembers:
+    handler: src/handlers/users.searchMembers
+    events:
+      - http:
+          path: members/search
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  # Transaction functions
+  getUserTransactions:
+    handler: src/handlers/transactions.getUserTransactions
+    events:
+      - http:
+          path: users/{id}/transactions
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  createTransaction:
+    handler: src/handlers/transactions.createTransaction
+    events:
+      - http:
+          path: transactions
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  # Branch functions
+  getBranches:
+    handler: src/handlers/branches.getBranches
+    events:
+      - http:
+          path: branches
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  # Prize functions
+  getPrizes:
+    handler: src/handlers/prizes.getPrizes
+    events:
+      - http:
+          path: prizes
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  updatePrize:
+    handler: src/handlers/prizes.updatePrize
+    events:
+      - http:
+          path: prizes/{id}
+          method: put
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  # Item functions
+  getItems:
+    handler: src/handlers/items.getItems
+    events:
+      - http:
+          path: items
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  # Lex Chatbot functions
+  lexFulfillment:
+    handler: src/handlers/lexBot.fulfillment
+    events:
+      - http:
+          path: lex/fulfillment
+          method: post
+          cors: true
+
+  lexWebhook:
+    handler: src/handlers/lexBot.webhook
+    events:
+      - http:
+          path: lex/webhook
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  # Social Media Integration
+  whatsappWebhook:
+    handler: src/handlers/socialIntegration.whatsappWebhook
+    events:
+      - http:
+          path: webhooks/whatsapp
+          method: post
+          cors: false
+
+  instagramWebhook:
+    handler: src/handlers/socialIntegration.instagramWebhook
+    events:
+      - http:
+          path: webhooks/instagram
+          method: post
+          cors: false
+      - http:
+          path: webhooks/instagram
+          method: get
+          cors: false
+
+  # Settings functions
+  getSettings:
+    handler: src/handlers/settings.getSettings
+    events:
+      - http:
+          path: settings
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+  updateSettings:
+    handler: src/handlers/settings.updateSettings
+    events:
+      - http:
+          path: settings
+          method: put
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${self:custom.cognitoUserPoolId}
+
+resources:
+  Resources:
+    # DynamoDB Tables
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.USERS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: login_name
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: LoginNameIndex
+            KeySchema:
+              - AttributeName: login_name
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            BillingMode: PAY_PER_REQUEST
+        BillingMode: PAY_PER_REQUEST
+
+    TransactionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.TRANSACTIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: created_at
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserIdIndex
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+              - AttributeName: created_at
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            BillingMode: PAY_PER_REQUEST
+        BillingMode: PAY_PER_REQUEST
+
+    ItemsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.ITEMS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: barcode
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: BarcodeIndex
+            KeySchema:
+              - AttributeName: barcode
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            BillingMode: PAY_PER_REQUEST
+        BillingMode: PAY_PER_REQUEST
+
+    PrizesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.PRIZES_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    BranchesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.BRANCHES_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    SettingsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.SETTINGS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: key
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+custom:
+  cognitoUserPoolId: ${env:COGNITO_USER_POOL_ID, 'us-east-1_XXXXXXXXX'}
+
+plugins:
+  - serverless-offline

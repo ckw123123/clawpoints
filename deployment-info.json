@@ -1,0 +1,9 @@
+{
+    "timestamp": "1759200667",
+    "bucketName": "clawpoints-demo-1759200667",
+    "region": "us-east-1",
+    "s3WebsiteUrl": "http://clawpoints-demo-1759200667.s3-website-us-east-1.amazonaws.com",
+    "cloudfrontDomain": "d2luhznljkdyke.cloudfront.net",
+    "distributionId": "EZRZ6RXJP1KNG",
+    "deploymentType": "public-demo"
+}

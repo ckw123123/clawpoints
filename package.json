@@ -1,0 +1,16 @@
+{
+  "name": "membership-points-app",
+  "version": "1.0.0",
+  "description": "AWS-based membership points management system",
+  "scripts": {
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "deploy": "cd infrastructure && cdk deploy",
+    "seed-data": "cd scripts && node seed-data.js",
+    "init-settings": "cd scripts && node init-settings.js"
+  },
+  "keywords": ["aws", "cognito", "dynamodb", "react", "membership"],
+  "author": "",
+  "license": "MIT"
+}
